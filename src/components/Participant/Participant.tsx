@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { subscribeToPusher } from '../../services/pusherService';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Alert, AlertDescription } from '../ui/alert';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Quiz {
   id: number;
   question: string;
   options: string[];
+  timeLimit?: number;
+}
+
+interface TranscriptionData {
+  text: string;
+  isPartial?: boolean;
+  timestamp?: number;
 }
 
 const Participant: React.FC = () => {
@@ -17,12 +29,12 @@ const Participant: React.FC = () => {
   const [hasAnswered, setHasAnswered] = useState(false);
   const [userId] = useState(() => localStorage.getItem('userId') || Math.random().toString(36).substring(2, 8));
   const [error, setError] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+
   useEffect(() => {
     if (sessionId) {
-      // Save userId to localStorage
       localStorage.setItem('userId', userId);
 
-      // Join the session
       fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/join`, {
         method: 'POST',
         headers: {
@@ -34,18 +46,25 @@ const Participant: React.FC = () => {
         setError('Failed to join session. Please try again.');
       });
 
-      // Subscribe to Pusher events
       try {
         const cleanup = subscribeToPusher(sessionId, {
-          onTranscription: (text) => {
-            setTranscript(text);
-            setError(null); // Clear error when we receive data
+          onTranscription: (data: TranscriptionData) => {
+            setTranscript(prev => {
+              if (data.isPartial) {
+                return prev + ' ' + data.text;
+              }
+              return data.text;
+            });
+            setError(null);
           },
           onQuiz: (quiz) => {
             setCurrentQuiz(quiz);
             setHasAnswered(false);
             setSelectedAnswer(null);
-            setError(null); // Clear error when we receive data
+            setError(null);
+            if (quiz.timeLimit) {
+              setTimeRemaining(quiz.timeLimit);
+            }
           }
         });
 
@@ -56,6 +75,24 @@ const Participant: React.FC = () => {
       }
     }
   }, [sessionId, userId]);
+
+  // Timer effect for quiz
+  useEffect(() => {
+    if (!currentQuiz || hasAnswered || !timeRemaining) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentQuiz, hasAnswered, timeRemaining]);
+
   const submitAnswer = async (answer: string) => {
     if (!hasAnswered && currentQuiz && sessionId) {
       try {
@@ -86,50 +123,90 @@ const Participant: React.FC = () => {
     }
   };
 
-  return (    <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-4">Session: {sessionId}</h1>
-          
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-4">
-              {error}
-            </div>
-          )}
+  return (
+    <div className="min-h-screen p-8 bg-gray-50">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Session: {sessionId}</span>
+              <Badge variant="outline" className="font-mono">{userId}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <div className="bg-gray-50 p-4 rounded-lg mb-6">
-            <h2 className="text-lg font-semibold mb-2">Live Transcript:</h2>
-            <p className="whitespace-pre-wrap">{transcript}</p>
-          </div>
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Live Transcript</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-50 p-4 rounded-lg min-h-[200px] max-h-[400px] overflow-y-auto">
+                  <p className="whitespace-pre-wrap text-gray-700">{transcript}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-          {currentQuiz && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h2 className="text-lg font-semibold mb-4">Quiz Question:</h2>
-              <p className="mb-4">{currentQuiz.question}</p>
-              
-              <div className="space-y-2">
-                {currentQuiz.options.map((option, index) => (
-                  <button
-                    key={index}
-                    onClick={() => submitAnswer(option)}
-                    disabled={hasAnswered}
-                    className={`w-full p-3 text-left rounded ${
-                      selectedAnswer === option
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white border hover:bg-gray-50'
-                    } ${hasAnswered ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-              
-              {hasAnswered && (
-                <p className="mt-4 text-green-600">Your answer has been submitted!</p>
-              )}
-            </div>
-          )}
-        </div>
+            {currentQuiz && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Quiz Question</span>
+                    {timeRemaining > 0 && (
+                      <Badge variant="secondary">
+                        Time: {timeRemaining}s
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-6 text-lg font-medium">{currentQuiz.question}</p>
+                  
+                  <div className="space-y-3">
+                    {currentQuiz.options.map((option, index) => (
+                      <Button
+                        key={index}
+                        onClick={() => submitAnswer(option)}
+                        disabled={hasAnswered || timeRemaining === 0}
+                        variant={selectedAnswer === option ? "default" : "outline"}
+                        className={`w-full justify-start ${
+                          selectedAnswer === option
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-accent'
+                        }`}
+                      >
+                        {option}
+                      </Button>
+                    ))}
+                  </div>
+                  
+                  {hasAnswered && (
+                    <Alert className="mt-4 bg-green-50 border-green-200">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-600">
+                        Your answer has been submitted!
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {timeRemaining === 0 && !hasAnswered && (
+                    <Alert variant="destructive" className="mt-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Time's up! You can no longer submit an answer.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -3,21 +3,30 @@ import Pusher from 'pusher-js';
 // Enable Pusher logging for debugging
 Pusher.logToConsole = true;
 
+interface TranscriptionData {
+  text: string;
+  isPartial?: boolean;
+  timestamp?: number;
+}
+
+interface PusherService {
+  onTranscription?: (data: TranscriptionData) => void;
+  onQuiz?: (quiz: any) => void;
+  onUserJoined?: (data: { userId: string; name: string }) => void;
+  onAnswerSubmitted?: (data: { userId: string; name: string; answer: string; questionId: string }) => void;
+  onQuizEnded?: (data: { quizId: string; answers: Array<{ userId: string; name: string; answer: string }> }) => void;
+}
+
 const pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY!, {
   cluster: process.env.REACT_APP_PUSHER_CLUSTER!,
   forceTLS: true
 });
 
-export const subscribeToPusher = (sessionId: string, callbacks: {
-  onTranscription?: (text: string) => void;
-  onQuiz?: (quiz: any) => void;
-  onUserJoined?: (data: { userId: string }) => void;
-  onAnswerSubmitted?: (data: { userId: string; answer: string; questionId: string }) => void;
-}) => {
+export const subscribeToPusher = (sessionId: string, callbacks: PusherService) => {
   const channel = pusher.subscribe(`session-${sessionId}`);
   if (callbacks.onTranscription) {
-    channel.bind('new-transcription', (data: { text: string; fullTranscript?: string }) => {
-      callbacks.onTranscription!(data.fullTranscript || data.text);
+    channel.bind('new-transcription', (data: TranscriptionData) => {
+      callbacks.onTranscription!(data);
     });
   }
 
@@ -28,14 +37,20 @@ export const subscribeToPusher = (sessionId: string, callbacks: {
   }
 
   if (callbacks.onUserJoined) {
-    channel.bind('user-joined', (data: { userId: string }) => {
+    channel.bind('user-joined', (data: { userId: string; name: string }) => {
       callbacks.onUserJoined!(data);
     });
   }
 
   if (callbacks.onAnswerSubmitted) {
-    channel.bind('answer-submitted', (data: { userId: string; answer: string; questionId: string }) => {
+    channel.bind('answer-submitted', (data: { userId: string; name: string; answer: string; questionId: string }) => {
       callbacks.onAnswerSubmitted!(data);
+    });
+  }
+
+  if (callbacks.onQuizEnded) {
+    channel.bind('quiz-ended', (data: { quizId: string; answers: Array<{ userId: string; name: string; answer: string }> }) => {
+      callbacks.onQuizEnded!(data);
     });
   }
 
