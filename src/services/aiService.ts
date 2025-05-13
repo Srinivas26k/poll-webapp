@@ -17,16 +17,20 @@ export const generateQuizFromTranscript = async (transcript: string): Promise<{
   try {
     const prompt = `Based on this transcript, generate a multiple choice question with 4 options. Format your response as JSON:
     Transcript: "${transcript}"
-    Generate a JSON object with "question" and "options" (array of 4 strings).`;
-
-    const completion = await openai.chat.completions.create({
-      model: "qwen/qwen3-0.6b-04-28:free",
+    Generate a JSON object with "question" and "options" (array of 4 strings).`;    const completion = await openai.chat.completions.create({
+      model: "thudm/glm-z1-9b:free",
       messages: [
+        {
+          role: "system",
+          content: "You are a quiz generator. Generate multiple choice questions based on the given transcript."
+        },
         {
           role: "user",
           content: prompt
         }
-      ]
+      ],
+      temperature: 0.7,
+      max_tokens: 500
     });
 
     const result = JSON.parse(completion.choices[0].message.content || "{}");

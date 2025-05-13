@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { generateQuizFromTranscript } from '../../services/aiService';
 import { subscribeToPusher } from '../../services/pusherService';
 
-const Host: React.FC = () => {  
+const Host: React.FC = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('sessionId');
   const [isRecording, setIsRecording] = useState(false);
@@ -11,8 +11,9 @@ const Host: React.FC = () => {
   const [recognition, setRecognition] = useState<any>(null);
   const [quizInterval, setQuizInterval] = useState<number>(5);
   const [lastQuizTime, setLastQuizTime] = useState<number>(Date.now());
-  const [transcriptBuffer, setTranscriptBuffer] = useState<string>('');
+  const [transcriptBuffer, setTranscriptBuffer] = useState('');
   const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
+  const lastTranscriptRef = useRef('');
 
   useEffect(() => {
     if (sessionId) {
@@ -38,65 +39,42 @@ const Host: React.FC = () => {
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      const recognition: SpeechRecognition = new SpeechRecognition();
+      const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let currentTranscript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
+        const finalTranscript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join(' ');
+        
+        if (finalTranscript !== lastTranscriptRef.current) {
+          handleTranscriptUpdate(finalTranscript);
+          lastTranscriptRef.current = finalTranscript;
         }
-        handleTranscriptUpdate(currentTranscript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
       };
 
       setRecognition(recognition);
     }
   }, [sessionId]);
 
-  useEffect(() => {
-    const checkQuizGeneration = async () => {
-      const now = Date.now();
-      if (isRecording && transcriptBuffer && 
-          (now - lastQuizTime) > (quizInterval * 60 * 1000)) {
-        try {
-          const quiz = await generateQuizFromTranscript(transcriptBuffer);
-          
-          // Send the quiz using the server endpoint
-          await fetch(`${process.env.REACT_APP_SERVER_URL}/api/quiz`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ sessionId, quiz }),
-          });
-
-          setLastQuizTime(now);
-          setTranscriptBuffer(''); // Clear buffer after quiz generation
-        } catch (error) {
-          console.error('Error generating quiz:', error);
-        }
-      }
-    };
-
-    const interval = setInterval(checkQuizGeneration, 10000); // Check every 10 seconds
-    return () => clearInterval(interval);
-  }, [isRecording, lastQuizTime, quizInterval, sessionId, transcriptBuffer]);
-
-  const toggleRecording = () => {
-    if (isRecording) {
-      recognition?.stop();
-    } else {
-      recognition?.start();
-    }
-    setIsRecording(!isRecording);
-  };
   const handleTranscriptUpdate = async (text: string) => {
     try {
-      setTranscript(prevTranscript => prevTranscript + ' ' + text);
-      setTranscriptBuffer(prevBuffer => prevBuffer + ' ' + text);
+      // Update local transcript with only the new text
+      setTranscript(text);
       
-      // Send transcription using the server endpoint
+      // Append to buffer for quiz generation
+      setTranscriptBuffer(prevBuffer => prevBuffer + ' ' + text);
+
+      if (!sessionId) return;
+
+      // Send transcription to server
       const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/transcription`, {
         method: 'POST',
         headers: {
@@ -108,11 +86,52 @@ const Host: React.FC = () => {
       if (!response.ok) {
         throw new Error('Failed to send transcription');
       }
-
-      console.log('Transcription sent successfully');
     } catch (error) {
       console.error('Error sending transcription:', error);
     }
+  };
+
+  // Quiz generation timer effect
+  useEffect(() => {
+    if (!isRecording || !transcriptBuffer.trim()) return;
+
+    const generateQuiz = async () => {
+      try {
+        if (Date.now() - lastQuizTime < quizInterval * 60 * 1000) return;
+
+        console.log('Generating quiz from transcript:', transcriptBuffer);
+        const quiz = await generateQuizFromTranscript(transcriptBuffer);
+        
+        const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/quiz`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sessionId, quiz }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to send quiz');
+        }
+
+        setLastQuizTime(Date.now());
+        setTranscriptBuffer(''); // Clear buffer after successful quiz generation
+      } catch (error) {
+        console.error('Error generating quiz:', error);
+      }
+    };
+
+    const timer = setInterval(generateQuiz, 10000); // Check every 10 seconds
+    return () => clearInterval(timer);
+  }, [isRecording, transcriptBuffer, lastQuizTime, quizInterval, sessionId]);
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognition?.stop();
+    } else {
+      recognition?.start();
+    }
+    setIsRecording(!isRecording);
   };
 
   const handleIntervalChange = (event: React.ChangeEvent<HTMLSelectElement>) => {

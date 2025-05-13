@@ -15,10 +15,9 @@ export const subscribeToPusher = (sessionId: string, callbacks: {
   onAnswerSubmitted?: (data: { userId: string; answer: string; questionId: string }) => void;
 }) => {
   const channel = pusher.subscribe(`session-${sessionId}`);
-
   if (callbacks.onTranscription) {
-    channel.bind('new-transcription', (data: { text: string }) => {
-      callbacks.onTranscription!(data.text);
+    channel.bind('new-transcription', (data: { text: string; fullTranscript?: string }) => {
+      callbacks.onTranscription!(data.fullTranscript || data.text);
     });
   }
 

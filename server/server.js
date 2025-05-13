@@ -100,12 +100,20 @@ router.post('/transcription', async (req, res) => {
   }
 
   const sessionTranscripts = transcripts.get(sessionId);
-  sessionTranscripts.push(text);
+  const timestamp = Date.now();
+  const transcriptEntry = { text, timestamp };
+  sessionTranscripts.push(transcriptEntry);
+
+  // Keep only last 10 minutes of transcripts
+  const tenMinutesAgo = timestamp - 10 * 60 * 1000;
+  const updatedTranscripts = sessionTranscripts.filter(t => t.timestamp > tenMinutesAgo);
+  transcripts.set(sessionId, updatedTranscripts);
   
   try {
     await pusher.trigger(`session-${sessionId}`, 'new-transcription', {
       text,
-      timestamp: Date.now()
+      timestamp,
+      fullTranscript: updatedTranscripts.map(t => t.text).join(' ')
     });
     
     console.log('Successfully sent transcription via Pusher');
@@ -117,15 +125,27 @@ router.post('/transcription', async (req, res) => {
 });
 
 // New quiz endpoint
-router.post('/quiz', (req, res) => {
+router.post('/quiz', async (req, res) => {
   const { sessionId, quiz } = req.body;
-  if (sessions.get(sessionId)) {
-    pusher.trigger(`session-${sessionId}`, 'new-quiz', {
-      quiz
+  console.log('Received quiz for session', sessionId, ':', quiz);
+
+  if (!sessions.get(sessionId)) {
+    return res.status(404).json({ success: false, error: 'Session not found' });
+  }
+
+  try {
+    await pusher.trigger(`session-${sessionId}`, 'new-quiz', {
+      quiz: {
+        ...quiz,
+        id: Date.now(), // Add unique ID to each quiz
+        timestamp: Date.now()
+      }
     });
+    console.log('Successfully sent quiz via Pusher');
     res.json({ success: true });
-  } else {
-    res.status(404).json({ success: false, error: 'Session not found' });
+  } catch (error) {
+    console.error('Error sending quiz:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
