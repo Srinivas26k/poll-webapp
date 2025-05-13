@@ -8,9 +8,13 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
+    origin: process.env.NODE_ENV === 'production' 
+      ? ['https://*.vercel.app', 'https://*.now.sh']  // Allow Vercel domains in production
+      : 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  path: '/api/socketio'
 });
 
 app.use(cors());
