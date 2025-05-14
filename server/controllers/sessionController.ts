@@ -13,16 +13,21 @@ export const createSession = (req: Request<{}, {}, SessionCreationParams>, res: 
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const hostWithId: UserDetails = {
+      ...host,
+      userId: uuidv4()
+    };
+
     const newSession: Session = {
       id: sessionId,
       name,
-      hostId: host.userId || uuidv4(),
-      host,
+      hostId: hostWithId.userId,
+      host: hostWithId,
       participants: [],
+      createdAt: Date.now(),
+      status: 'active',
       transcripts: [],
-      polls: [],
-      createdAt: new Date(),
-      status: 'active'
+      polls: []
     };
 
     sessions.set(sessionId, newSession);
@@ -60,10 +65,10 @@ export const joinSession = (req: Request<{}, {}, SessionJoinParams>, res: Respon
       return res.status(400).json({ error: 'User already in session' });
     }
 
-    // Add participant with a userId if not provided
+    // Add participant with a userId
     const participantWithId: UserDetails = {
       ...participant,
-      userId: participant.userId || uuidv4()
+      userId: uuidv4()
     };
     
     session.participants.push(participantWithId);
@@ -124,6 +129,9 @@ export const addTranscript = (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
+    if (!session.transcripts) {
+      session.transcripts = [];
+    }
     session.transcripts.push(transcript);
     res.json({ success: true });
   } catch (error) {
@@ -141,7 +149,7 @@ export const getTranscripts = (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    res.json(session.transcripts);
+    res.json(session.transcripts || []);
   } catch (error) {
     console.error('Error getting transcripts:', error);
     res.status(500).json({ error: 'Failed to get transcripts' });

@@ -2,14 +2,19 @@
 export interface UserDetails {
   name: string;
   email: string;
+  userId?: string;
 }
 
 export interface Session {
   id: string;
   name: string;
   host: UserDetails;
+  hostId?: string;
   participants: UserDetails[];
   createdAt: number;
+  status?: 'active' | 'ended';
+  transcripts?: string[];
+  polls?: Poll[];
 }
 
 export interface Quiz {
