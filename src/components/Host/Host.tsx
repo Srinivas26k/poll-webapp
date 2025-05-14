@@ -12,6 +12,8 @@ import { Slider } from '../ui/slider';
 import { Label } from '../ui/label';
 import { ScrollArea } from '../ui/scroll-area';
 import { Session, Quiz, UserDetails } from '../../types/index';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 interface SessionResponse {
   sessionId: string;
@@ -38,6 +40,9 @@ const Host: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const lastTranscriptRef = useRef('');
   const [participants, setParticipants] = useState<string[]>([]);
+  const [quizHistory, setQuizHistory] = useState<Quiz[]>([]);
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+  const [currentUserEmail] = useState(() => localStorage.getItem('userId') || '');
 
   useEffect(() => {
     if (!sessionId) {
@@ -242,6 +247,13 @@ const Host: React.FC = () => {
     }
   };
 
+  // Add this new useEffect for quiz history
+  useEffect(() => {
+    if (currentQuiz) {
+      setQuizHistory(prev => [...prev, currentQuiz]);
+    }
+  }, [currentQuiz]);
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -255,6 +267,13 @@ const Host: React.FC = () => {
         </div>
         <ScrollArea className="flex-1">
           <div className="space-y-2">
+            {session?.host && (
+              <div className="flex items-center space-x-2 p-2 rounded-md bg-blue-50">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-sm font-medium">{session.host.name}</span>
+                <Badge variant="outline" className="ml-auto">Host</Badge>
+              </div>
+            )}
             {participants.map((participant) => (
               <div
                 key={participant}
@@ -262,6 +281,9 @@ const Host: React.FC = () => {
               >
                 <div className="w-2 h-2 rounded-full bg-green-500" />
                 <span className="text-sm">{participant}</span>
+                {participant === currentUserEmail && (
+                  <Badge variant="secondary" className="ml-auto">You</Badge>
+                )}
               </div>
             ))}
           </div>
@@ -283,9 +305,108 @@ const Host: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Host Session</span>
-                <Badge variant={isRecording ? "destructive" : "default"}>
-                  {isRecording ? "Recording" : "Idle"}
-                </Badge>
+                <div className="flex items-center space-x-2">
+                  <Badge variant={isRecording ? "destructive" : "default"}>
+                    {isRecording ? "Recording" : "Idle"}
+                  </Badge>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        Quiz History
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl">
+                      <DialogHeader>
+                        <DialogTitle>Quiz History</DialogTitle>
+                      </DialogHeader>
+                      <Tabs defaultValue="list">
+                        <TabsList>
+                          <TabsTrigger value="list">List</TabsTrigger>
+                          {selectedQuiz && <TabsTrigger value="details">Details</TabsTrigger>}
+                        </TabsList>
+                        <TabsContent value="list" className="space-y-4">
+                          {quizHistory.map((quiz, index) => (
+                            <Card
+                              key={quiz.id}
+                              className="cursor-pointer hover:bg-gray-50"
+                              onClick={() => setSelectedQuiz(quiz)}
+                            >
+                              <CardHeader>
+                                <CardTitle className="text-lg">
+                                  Quiz {quizHistory.length - index}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-gray-600">{quiz.question}</p>
+                                <div className="mt-2 flex items-center space-x-2">
+                                  <Badge variant="outline">
+                                    {quiz.options.length} options
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {quiz.timeLimit}s time limit
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </TabsContent>
+                        {selectedQuiz && (
+                          <TabsContent value="details">
+                            <Card>
+                              <CardHeader>
+                                <CardTitle>Quiz Details</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-4">
+                                  <div>
+                                    <h3 className="font-medium mb-2">Question</h3>
+                                    <p className="text-gray-600">{selectedQuiz.question}</p>
+                                  </div>
+                                  <div>
+                                    <h3 className="font-medium mb-2">Options</h3>
+                                    <div className="space-y-2">
+                                      {selectedQuiz.options.map((option, index) => (
+                                        <div
+                                          key={index}
+                                          className={`p-2 rounded ${
+                                            option === selectedQuiz.correctAnswer
+                                              ? 'bg-green-50 border border-green-200'
+                                              : 'bg-gray-50'
+                                          }`}
+                                        >
+                                          {option}
+                                          {option === selectedQuiz.correctAnswer && (
+                                            <Badge className="ml-2" variant="secondary">
+                                              Correct
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h3 className="font-medium mb-2">Answers</h3>
+                                    <div className="space-y-2">
+                                      {Array.from(quizAnswers.entries()).map(([userId, answer]) => (
+                                        <div key={userId} className="flex items-center space-x-2">
+                                          <Badge variant="outline">{userId}</Badge>
+                                          <span>{answer}</span>
+                                          {answer === selectedQuiz.correctAnswer && (
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </TabsContent>
+                        )}
+                      </Tabs>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -378,7 +499,16 @@ const Host: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="bg-gray-50 p-4 rounded-lg min-h-[200px] max-h-[400px] overflow-y-auto">
-                      <p className="whitespace-pre-wrap text-gray-700">{transcript}</p>
+                      <div className="space-y-2">
+                        {transcript.split('\n').map((line, index) => (
+                          <div key={index} className="flex items-start space-x-2">
+                            <span className="text-gray-400 text-sm mt-1">
+                              {new Date().toLocaleTimeString()}
+                            </span>
+                            <p className="text-gray-700">{line}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

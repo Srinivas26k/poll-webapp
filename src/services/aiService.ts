@@ -4,47 +4,31 @@ if (!apiKey) {
   console.warn('OpenRouter API key is missing. Quiz generation will use fallback questions.');
 }
 
-import { Quiz } from '../types/index';
+import { Quiz } from '../types';
+
+const OPENROUTER_API_KEY = process.env.REACT_APP_OPENROUTER_API_KEY;
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export const generateQuizFromTranscript = async (transcript: string): Promise<Quiz> => {
-  // If no API key is available, return a fallback question
-  if (!apiKey) {
-    return generateFallbackQuiz(transcript);
-  }
-
   try {
-    const prompt = `Based on the following transcript, generate a relevant multiple-choice question that tests understanding of the main points discussed. The question should be clear, specific, and have exactly one correct answer.
-
-Transcript: "${transcript}"
-
-Generate a question in the following JSON format:
-{
-  "question": "The question text",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correctAnswer": "The correct option",
-  "explanation": "A brief explanation of why this is the correct answer"
-}
-
-Make sure the question is directly related to the content of the transcript and tests understanding of key concepts or important details.`;
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'HTTP-Referer': window.location.origin,
-        'X-Title': 'Live Poll App'
+        'X-Title': 'Live Transcription Quiz'
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3-opus-20240229',
+        model: 'openai/gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that generates educational quiz questions based on transcripts. Focus on creating questions that test understanding of key concepts and important details.'
+            content: 'You are a quiz generator. Generate a multiple-choice question based on the given transcript. The question should be clear, concise, and test understanding of the key points. Include 4 options, with one correct answer and three plausible distractors. Also provide a brief explanation of why the correct answer is right.'
           },
           {
             role: 'user',
-            content: prompt
+            content: `Generate a quiz question based on this transcript:\n\n${transcript}`
           }
         ],
         temperature: 0.7,
@@ -57,32 +41,57 @@ Make sure the question is directly related to the content of the transcript and 
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No content in response');
-    }    try {
-      const quizData = JSON.parse(content);
-      if (!quizData.question || !quizData.options || !quizData.correctAnswer || !quizData.explanation) {
-        throw new Error('Invalid quiz format');
+    const quizText = data.choices[0].message.content;
+
+    // Parse the quiz text to extract question, options, and explanation
+    const lines = quizText.split('\n').filter((line: string) => line.trim());
+    const question = lines[0].replace(/^Question:\s*/i, '');
+    
+    const options: string[] = [];
+    let correctAnswer = '';
+    let explanation = '';
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.match(/^[A-D][.)]\s/)) {
+        const option = line.replace(/^[A-D][.)]\s*/, '');
+        options.push(option);
+        if (line.includes('(correct)') || line.includes('(Correct)')) {
+          correctAnswer = option;
+        }
+      } else if (line.toLowerCase().includes('explanation:')) {
+        explanation = line.replace(/^Explanation:\s*/i, '');
       }
-      
-      // Add id to the quiz
-      const quiz: Quiz = {
-        id: Date.now().toString(),
-        question: quizData.question,
-        options: quizData.options,
-        correctAnswer: quizData.correctAnswer,
-        explanation: quizData.explanation
-      };
-      
-      return quiz;
-    } catch (error) {
-      console.error('Error parsing quiz:', error);
-      return generateFallbackQuiz(transcript);
     }
+
+    if (!correctAnswer && options.length > 0) {
+      correctAnswer = options[0]; // Fallback to first option if no correct answer marked
+    }
+
+    return {
+      id: Date.now().toString(),
+      question,
+      options,
+      correctAnswer,
+      explanation,
+      timeLimit: 60 // Default time limit in seconds
+    };
   } catch (error) {
     console.error('Error generating quiz:', error);
-    return generateFallbackQuiz(transcript);
+    // Return a fallback quiz if generation fails
+    return {
+      id: Date.now().toString(),
+      question: 'What was the main topic discussed?',
+      options: [
+        'The main topic was not clear',
+        'The transcript was too short',
+        'The audio quality was poor',
+        'The speaker was unclear'
+      ],
+      correctAnswer: 'The main topic was not clear',
+      explanation: 'Unable to generate a proper quiz due to technical issues.',
+      timeLimit: 60
+    };
   }
 };
 

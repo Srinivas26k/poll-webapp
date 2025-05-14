@@ -7,7 +7,7 @@ import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { CheckCircle2, AlertCircle, Users, LogOut } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
-import { Quiz } from '../../types/index';
+import { Quiz, UserDetails } from '../../types';
 
 interface TranscriptionData {
   text: string;
@@ -27,6 +27,8 @@ const Participant: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [participants, setParticipants] = useState<string[]>([]);
+  const [currentUserEmail] = useState(() => localStorage.getItem('userId') || '');
+  const [sessionHost, setSessionHost] = useState<UserDetails | null>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -35,6 +37,16 @@ const Participant: React.FC = () => {
     }
 
     if (sessionId) {
+      // Fetch session details to get host info
+      fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+          setSessionHost(data.host);
+        })
+        .catch(err => {
+          console.error('Failed to fetch session details:', err);
+        });
+
       fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/join`, {
         method: 'POST',
         headers: {
@@ -153,6 +165,13 @@ const Participant: React.FC = () => {
         </div>
         <ScrollArea className="flex-1">
           <div className="space-y-2">
+            {sessionHost && (
+              <div className="flex items-center space-x-2 p-2 rounded-md bg-blue-50">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-sm font-medium">{sessionHost.name}</span>
+                <Badge variant="outline" className="ml-auto">Host</Badge>
+              </div>
+            )}
             {participants.map((participant) => (
               <div
                 key={participant}
@@ -160,6 +179,9 @@ const Participant: React.FC = () => {
               >
                 <div className="w-2 h-2 rounded-full bg-green-500" />
                 <span className="text-sm">{participant}</span>
+                {participant === currentUserEmail && (
+                  <Badge variant="secondary" className="ml-auto">You</Badge>
+                )}
               </div>
             ))}
           </div>
@@ -198,7 +220,16 @@ const Participant: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="bg-gray-50 p-4 rounded-lg min-h-[200px] max-h-[400px] overflow-y-auto">
-                    <p className="whitespace-pre-wrap text-gray-700">{transcript}</p>
+                    <div className="space-y-2">
+                      {transcript.split('\n').map((line, index) => (
+                        <div key={index} className="flex items-start space-x-2">
+                          <span className="text-gray-400 text-sm mt-1">
+                            {new Date().toLocaleTimeString()}
+                          </span>
+                          <p className="text-gray-700">{line}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -217,7 +248,7 @@ const Participant: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="mb-6 text-lg font-medium">{currentQuiz.question}</p>
-                      <div className="space-y-3">
+                    <div className="space-y-3">
                       {currentQuiz.options.map((option: string, index: number) => (
                         <Button
                           key={index}
