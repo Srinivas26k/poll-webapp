@@ -7,7 +7,7 @@ const cors = require('cors');
 const app = express();
 
 // Verify environment variables
-const requiredEnvVars = ['PUSHER_APP_ID', 'REACT_APP_PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER'];
+const requiredEnvVars = ['PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     console.error(`Missing required environment variable: ${varName}`);
@@ -17,7 +17,7 @@ requiredEnvVars.forEach(varName => {
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
-  key: process.env.REACT_APP_PUSHER_KEY,
+  key: process.env.PUSHER_KEY,
   secret: process.env.PUSHER_SECRET,
   cluster: process.env.PUSHER_CLUSTER,
   useTLS: true
