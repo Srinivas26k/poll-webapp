@@ -10,13 +10,12 @@ interface TranscriptionData {
   timestamp?: number;
 }
 
-interface PusherService {
-  onTranscription?: (data: TranscriptionData) => void;
-  onQuiz?: (quiz: Quiz) => void;
-  onUserJoined?: (data: { userId: string; name: string }) => void;
-  onAnswerSubmitted?: (data: { userId: string; name: string; answer: string; questionId: string }) => void;
-  onQuizEnded?: (data: { quizId: string; answers: Array<{ userId: string; name: string; answer: string }> }) => void;
-  onParticipantsUpdate?: (participants: string[]) => void;
+export interface PusherService {
+  onTranscription: (data: { text: string; isPartial?: boolean; timestamp?: number }) => void;
+  onQuiz: (quiz: Quiz) => void;
+  onParticipantsUpdate: (participants: string[]) => void;
+  onAnswer: (data: { userId: string; answer: string; questionId: string }) => void;
+  onEndSession: () => void;
 }
 
 const pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY!, {
@@ -37,21 +36,9 @@ export const subscribeToPusher = (sessionId: string, callbacks: PusherService) =
     });
   }
 
-  if (callbacks.onUserJoined) {
-    channel.bind('user-joined', (data: { userId: string; name: string }) => {
-      callbacks.onUserJoined!(data);
-    });
-  }
-
-  if (callbacks.onAnswerSubmitted) {
+  if (callbacks.onAnswer) {
     channel.bind('answer-submitted', (data: { userId: string; name: string; answer: string; questionId: string }) => {
-      callbacks.onAnswerSubmitted!(data);
-    });
-  }
-
-  if (callbacks.onQuizEnded) {
-    channel.bind('quiz-ended', (data: { quizId: string; answers: Array<{ userId: string; name: string; answer: string }> }) => {
-      callbacks.onQuizEnded!(data);
+      callbacks.onAnswer!(data);
     });
   }
 

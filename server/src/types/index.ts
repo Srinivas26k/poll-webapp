@@ -27,27 +27,6 @@ export interface Quiz {
   timestamp?: number;
 }
 
-export interface TranscriptionData {
-  text: string;
-  isPartial?: boolean;
-  timestamp?: number;
-  chunkIndex?: number;
-  totalChunks?: number;
-}
-
-export interface QuizAnswer {
-  userId: string;
-  name: string;
-  answer: string;
-  questionId: string;
-  timestamp: number;
-}
-
-export interface QuizResult {
-  quizId: string;
-  answers: QuizAnswer[];
-}
-
 export interface Poll {
   id: string;
   question: string;
@@ -60,11 +39,6 @@ export interface PollResponse {
   answer: string;
 }
 
-export interface TranscriptChunk {
-  text: string;
-  timestamp: number;
-}
-
 export interface SessionCreationParams {
   name: string;
   host: UserDetails;
@@ -73,4 +47,4 @@ export interface SessionCreationParams {
 export interface SessionJoinParams {
   sessionId: string;
   participant: UserDetails;
-}
+} 
