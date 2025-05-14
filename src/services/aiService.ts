@@ -1,12 +1,12 @@
 // Check if API key is available
-const apiKey = process.env.REACT_APP_OPENROUTER_API_KEY;
+const apiKey = process.env.OPENROUTER_API_KEY;
 if (!apiKey) {
   console.warn('OpenRouter API key is missing. Quiz generation will use fallback questions.');
 }
 
 import { Quiz } from '../types';
 
-const OPENROUTER_API_KEY = process.env.REACT_APP_OPENROUTER_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export const generateQuizFromTranscript = async (transcript: string): Promise<Quiz> => {

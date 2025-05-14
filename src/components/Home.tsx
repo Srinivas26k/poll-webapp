@@ -29,7 +29,7 @@ const Home: React.FC = () => {
     if (!isFormValid) return;
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/create`, {
+      const response = await fetch(`${process.env.SERVER_URL}/api/session/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ const Home: React.FC = () => {
     if (!isFormValid || !sessionId) return;
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/join`, {
+      const response = await fetch(`${process.env.SERVER_URL}/api/session/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
