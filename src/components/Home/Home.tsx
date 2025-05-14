@@ -6,41 +6,124 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Alert, AlertDescription } from '../ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { UserDetails } from '../../types/index';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [sessionId, setSessionId] = useState('');
-  const [participantName, setParticipantName] = useState('');
+  const [formData, setFormData] = useState({
+    sessionId: '',
+    name: '',
+    email: '',
+    sessionName: ''
+  });
   const [error, setError] = useState<string | null>(null);
 
-  const createSession = () => {
-    if (!participantName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-    const newSessionId = Math.random().toString(36).substring(2, 8);
-    localStorage.setItem('participantName', participantName);
-    navigate(`/host?sessionId=${newSessionId}`);
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const joinSession = () => {
-    if (!sessionId.trim()) {
-      setError('Please enter a session ID');
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError(null);
+  };
+
+  const createSession = async () => {
+    const { name, email, sessionName } = formData;
+    
+    if (!name.trim() || !email.trim() || !sessionName.trim()) {
+      setError('Please fill in all fields to create a session.');
       return;
     }
-    if (!participantName.trim()) {
-      setError('Please enter your name');
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address.');
       return;
     }
-    localStorage.setItem('participantName', participantName);
-    navigate(`/participant?sessionId=${sessionId}`);
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: sessionName,
+          host: {
+            name,
+            email
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create session');
+      }
+
+      localStorage.setItem('participantName', name);
+      localStorage.setItem('email', email);
+      localStorage.setItem('sessionName', sessionName);
+      navigate(`/host?sessionId=${data.sessionId}`);
+    } catch (error) {
+      console.error('Error creating session:', error);
+      setError('Failed to create session. Please try again.');
+    }
+  };
+
+  const joinSession = async () => {
+    const { sessionId, name, email } = formData;
+
+    if (!sessionId.trim() || !name.trim() || !email.trim()) {
+      setError('Please fill in all fields to join a session.');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          participant: {
+            name,
+            email
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join session');
+      }
+
+      localStorage.setItem('participantName', name);
+      localStorage.setItem('email', email);
+      navigate(`/participant?sessionId=${sessionId}`);
+    } catch (error) {
+      console.error('Error joining session:', error);
+      setError('Failed to join session. Please try again.');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Welcome to Live Poll</CardTitle>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-3xl text-center font-bold text-gray-800">Live Transcription Quiz</CardTitle>
+          <p className="text-center text-gray-600">Create or join a live polling session</p>
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -55,27 +138,57 @@ const Home: React.FC = () => {
               <Label htmlFor="name">Your Name</Label>
               <Input
                 id="name"
+                name="name"
                 placeholder="Enter your name"
-                value={participantName}
-                onChange={(e) => setParticipantName(e.target.value)}
+                value={formData.name}
+                onChange={handleInputChange}
+                className="h-11"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sessionId">Session ID</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="sessionId"
-                placeholder="Enter session ID to join"
-                value={sessionId}
-                onChange={(e) => setSessionId(e.target.value)}
+                id="email"
+                name="email"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="h-11"
               />
             </div>
 
-            <div className="flex flex-col space-y-2">
+            <div className="space-y-2">
+              <Label htmlFor="sessionName">Session Name (for creating a session)</Label>
+              <Input
+                id="sessionName"
+                name="sessionName"
+                placeholder="Enter session name"
+                value={formData.sessionName}
+                onChange={handleInputChange}
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sessionId">Session ID (for joining a session)</Label>
+              <Input
+                id="sessionId"
+                name="sessionId"
+                placeholder="Enter session ID to join"
+                value={formData.sessionId}
+                onChange={handleInputChange}
+                className="h-11"
+              />
+            </div>
+
+            <div className="flex flex-col space-y-3">
               <Button
                 onClick={joinSession}
-                className="w-full"
+                className="w-full h-11"
                 variant="default"
+                disabled={!formData.sessionId || !formData.name || !formData.email}
               >
                 Join Session
               </Button>
@@ -91,8 +204,9 @@ const Home: React.FC = () => {
               </div>
               <Button
                 onClick={createSession}
-                className="w-full"
+                className="w-full h-11"
                 variant="outline"
+                disabled={!formData.name || !formData.email || !formData.sessionName}
               >
                 Create New Session
               </Button>
@@ -104,4 +218,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home; 
+export default Home;

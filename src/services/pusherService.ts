@@ -1,4 +1,5 @@
 import Pusher from 'pusher-js';
+import { Quiz, UserDetails } from '../types/index';
 
 // Enable Pusher logging for debugging
 Pusher.logToConsole = true;
@@ -11,10 +12,11 @@ interface TranscriptionData {
 
 interface PusherService {
   onTranscription?: (data: TranscriptionData) => void;
-  onQuiz?: (quiz: any) => void;
+  onQuiz?: (quiz: Quiz) => void;
   onUserJoined?: (data: { userId: string; name: string }) => void;
   onAnswerSubmitted?: (data: { userId: string; name: string; answer: string; questionId: string }) => void;
   onQuizEnded?: (data: { quizId: string; answers: Array<{ userId: string; name: string; answer: string }> }) => void;
+  onParticipantsUpdate?: (participants: string[]) => void;
 }
 
 const pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY!, {
@@ -29,9 +31,8 @@ export const subscribeToPusher = (sessionId: string, callbacks: PusherService) =
       callbacks.onTranscription!(data);
     });
   }
-
   if (callbacks.onQuiz) {
-    channel.bind('new-quiz', (data: { quiz: any }) => {
+    channel.bind('new-quiz', (data: { quiz: Quiz }) => {
       callbacks.onQuiz!(data.quiz);
     });
   }
@@ -51,6 +52,12 @@ export const subscribeToPusher = (sessionId: string, callbacks: PusherService) =
   if (callbacks.onQuizEnded) {
     channel.bind('quiz-ended', (data: { quizId: string; answers: Array<{ userId: string; name: string; answer: string }> }) => {
       callbacks.onQuizEnded!(data);
+    });
+  }
+
+  if (callbacks.onParticipantsUpdate) {
+    channel.bind('participants-update', (data: { participants: string[] }) => {
+      callbacks.onParticipantsUpdate!(data.participants);
     });
   }
 

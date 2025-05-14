@@ -1,80 +1,149 @@
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-
-interface Session {
-  id: string;
-  hostId: string;
-  participants: string[];
-  transcripts: string[];
-  polls: Poll[];
-}
-
-interface Poll {
-  id: string;
-  question: string;
-  options: string[];
-  responses: { userId: string; answer: string }[];
-}
+import { Session, UserDetails, Poll, SessionCreationParams, SessionJoinParams } from '../../src/types';
 
 const sessions = new Map<string, Session>();
 
-export const createSession = (req: Request, res: Response) => {
-  const sessionId = uuidv4();
-  const hostId = req.body.hostId;
+export const createSession = (req: Request<{}, {}, SessionCreationParams>, res: Response) => {
+  try {
+    const sessionId = uuidv4();
+    const { name, host } = req.body;
 
-  sessions.set(sessionId, {
-    id: sessionId,
-    hostId,
-    participants: [],
-    transcripts: [],
-    polls: []
-  });
+    if (!name || !host.email || !host.name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
-  res.json({ sessionId });
+    const newSession: Session = {
+      id: sessionId,
+      name,
+      hostId: host.userId || uuidv4(),
+      host,
+      participants: [],
+      transcripts: [],
+      polls: [],
+      createdAt: new Date(),
+      status: 'active'
+    };
+
+    sessions.set(sessionId, newSession);
+    res.json({ 
+      sessionId,
+      session: newSession
+    });
+  } catch (error) {
+    console.error('Error creating session:', error);
+    res.status(500).json({ error: 'Failed to create session' });
+  }
 };
 
-export const joinSession = (req: Request, res: Response) => {
-  const { sessionId, participantId } = req.body;
-  const session = sessions.get(sessionId);
+export const joinSession = (req: Request<{}, {}, SessionJoinParams>, res: Response) => {
+  try {
+    const { sessionId, participant } = req.body;
+    const session = sessions.get(sessionId);
 
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    if (!participant.email || !participant.name) {
+      return res.status(400).json({ error: 'Missing participant details' });
+    }
+
+    // Check if session is still active
+    if (session.status !== 'active') {
+      return res.status(400).json({ error: 'Session has ended' });
+    }
+
+    // Check if participant already exists
+    const existingParticipant = session.participants.find(p => p.email === participant.email);
+    if (existingParticipant) {
+      return res.status(400).json({ error: 'User already in session' });
+    }
+
+    // Add participant with a userId if not provided
+    const participantWithId: UserDetails = {
+      ...participant,
+      userId: participant.userId || uuidv4()
+    };
+    
+    session.participants.push(participantWithId);
+    res.json({ 
+      success: true,
+      session: {
+        id: session.id,
+        name: session.name,
+        hostId: session.hostId,
+        participantId: participantWithId.userId
+      }
+    });
+  } catch (error) {
+    console.error('Error joining session:', error);
+    res.status(500).json({ error: 'Failed to join session' });
   }
+};
 
-  session.participants.push(participantId);
-  res.json({ success: true });
+export const endSession = (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.body;
+    const session = sessions.get(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.status = 'ended';
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error ending session:', error);
+    res.status(500).json({ error: 'Failed to end session' });
+  }
 };
 
 export const getSessionDetails = (req: Request, res: Response) => {
-  const { sessionId } = req.params;
-  const session = sessions.get(sessionId);
+  try {
+    const { sessionId } = req.params;
+    const session = sessions.get(sessionId);
 
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.json(session);
+  } catch (error) {
+    console.error('Error getting session details:', error);
+    res.status(500).json({ error: 'Failed to get session details' });
   }
-
-  res.json(session);
 };
 
 export const addTranscript = (req: Request, res: Response) => {
-  const { sessionId, transcript } = req.body;
-  const session = sessions.get(sessionId);
+  try {
+    const { sessionId, transcript } = req.body;
+    const session = sessions.get(sessionId);
 
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.transcripts.push(transcript);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding transcript:', error);
+    res.status(500).json({ error: 'Failed to add transcript' });
   }
-
-  session.transcripts.push(transcript);
-  res.json({ success: true });
 };
 
 export const getTranscripts = (req: Request, res: Response) => {
-  const { sessionId } = req.params;
-  const session = sessions.get(sessionId);
+  try {
+    const { sessionId } = req.params;
+    const session = sessions.get(sessionId);
 
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.json(session.transcripts);
+  } catch (error) {
+    console.error('Error getting transcripts:', error);
+    res.status(500).json({ error: 'Failed to get transcripts' });
   }
-
-  res.json(session.transcripts);
 };

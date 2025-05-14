@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { createSession, joinSession, getSessionDetails, addTranscript, getTranscripts } from '../controllers/sessionController';
+import { 
+  createSession, 
+  joinSession, 
+  getSessionDetails, 
+  addTranscript, 
+  getTranscripts, 
+  endSession 
+} from '../controllers/sessionController';
 import { createQuiz, submitAnswer, getQuizResults } from '../controllers/quizController';
 
 const router = Router();
@@ -10,6 +17,7 @@ router.post('/session/join', joinSession);
 router.get('/session/:sessionId', getSessionDetails);
 router.post('/session/transcript', addTranscript);
 router.get('/session/:sessionId/transcripts', getTranscripts);
+router.post('/session/end', endSession);
 
 // Quiz routes
 router.post('/quiz/create', createQuiz);
