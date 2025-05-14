@@ -6,6 +6,13 @@ const cors = require('cors');
 
 const app = express();
 
+// Debug environment variables
+console.log('Server Environment Variables:');
+console.log('PUSHER_APP_ID:', process.env.PUSHER_APP_ID);
+console.log('PUSHER_KEY:', process.env.PUSHER_KEY);
+console.log('PUSHER_SECRET:', process.env.PUSHER_SECRET);
+console.log('PUSHER_CLUSTER:', process.env.PUSHER_CLUSTER);
+
 // Verify environment variables
 const requiredEnvVars = ['PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER'];
 requiredEnvVars.forEach(varName => {

@@ -18,9 +18,14 @@ export interface PusherService {
   onEndSession: () => void;
 }
 
+// Debug environment variables
+console.log('Pusher Key:', process.env.PUSHER_KEY);
+console.log('Pusher Cluster:', process.env.PUSHER_CLUSTER);
+
 const pusher = new Pusher(process.env.PUSHER_KEY!, {
   cluster: process.env.PUSHER_CLUSTER!,
-  forceTLS: true
+  forceTLS: true,
+  enabledTransports: ['ws', 'wss']
 });
 
 export const subscribeToPusher = (sessionId: string, callbacks: PusherService) => {
