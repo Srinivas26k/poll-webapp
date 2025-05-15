@@ -6,19 +6,26 @@ const cors = require('cors');
 
 const app = express();
 
-// Debug environment variables
-console.log('Server Environment Variables:');
-console.log('PUSHER_APP_ID:', process.env.PUSHER_APP_ID);
-console.log('PUSHER_KEY:', process.env.PUSHER_KEY);
-console.log('PUSHER_SECRET:', process.env.PUSHER_SECRET);
-console.log('PUSHER_CLUSTER:', process.env.PUSHER_CLUSTER);
+// Only log environment variables in development
+if (process.env.NODE_ENV !== 'production') {
+  console.log('Server Environment Variables:');
+  console.log('PUSHER_APP_ID:', process.env.PUSHER_APP_ID);
+  console.log('PUSHER_KEY:', process.env.PUSHER_KEY);
+  console.log('PUSHER_SECRET:', process.env.PUSHER_SECRET);
+  console.log('PUSHER_CLUSTER:', process.env.PUSHER_CLUSTER);
+}
 
 // Verify environment variables
 const requiredEnvVars = ['PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     console.error(`Missing required environment variable: ${varName}`);
-    process.exit(1);
+    if (process.env.NODE_ENV === 'production') {
+      // In production, just log the error but don't exit
+      console.error('Application may not function correctly');
+    } else {
+      process.exit(1);
+    }
   }
 });
 
@@ -30,7 +37,12 @@ const pusher = new Pusher({
   useTLS: true
 });
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.VERCEL_URL || 'https://poll-webapp.vercel.app', /\.vercel\.app$/] 
+    : 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
 // Store active sessions and their data
@@ -358,11 +370,16 @@ app.get('/api/session/:sessionId', async (req, res) => {
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
-
   res.json(session);
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+// Export the Express API for Vercel serverless deployment
+module.exports = app;

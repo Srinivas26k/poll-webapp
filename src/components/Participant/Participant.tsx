@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { CheckCircle2, AlertCircle, Users, LogOut } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Quiz, UserDetails } from '../../types';
+import { API_URL } from '../../config';
 
 interface TranscriptionData {
   text: string;
@@ -17,7 +18,7 @@ interface TranscriptionData {
 
 // --- API Service Abstraction ---
 const fetchSessionDetailsParticipant = async (sessionId: string): Promise<{ host: UserDetails }> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/${sessionId}`);
+  const response = await fetch(`${API_URL}/api/session/${sessionId}`);
   if (!response.ok) {
     throw new Error('Failed to fetch session details');
   }
@@ -25,7 +26,7 @@ const fetchSessionDetailsParticipant = async (sessionId: string): Promise<{ host
 };
 
 const joinSessionApi = async (sessionId: string, userId: string): Promise<void> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/join`, {
+  const response = await fetch(`${API_URL}/api/session/join`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ const joinSessionApi = async (sessionId: string, userId: string): Promise<void> 
 };
 
 const submitQuizAnswerApi = async (sessionId: string, userId: string, answer: string, questionId: string): Promise<void> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/quiz/answer`, {
+  const response = await fetch(`${API_URL}/api/quiz/answer`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ const submitQuizAnswerApi = async (sessionId: string, userId: string, answer: st
 };
 
 const leaveSessionApi = async (sessionId: string, userId: string): Promise<void> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/leave`, {
+  const response = await fetch(`${API_URL}/api/session/leave`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

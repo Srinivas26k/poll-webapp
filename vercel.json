@@ -2,32 +2,24 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/**/*.ts",
+      "src": "server/server.js",
       "use": "@vercel/node"
     },
     {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build",
-        "buildCommand": "npm run build",
-        "env": {
-          "REACT_APP_SERVER_URL": "@react_app_server_url",
-          "REACT_APP_OPENROUTER_API_KEY": "@react_app_openrouter_api_key",
-          "PUSHER_KEY": "@pusher_key",
-          "PUSHER_CLUSTER": "@pusher_cluster"
-        }
+        "distDir": "build"
       }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server/server.ts"
-    },
-    {
+      "dest": "server/server.js"
+    },    {
       "src": "/socket.io/(.*)",
-      "dest": "server/server.ts"
+      "dest": "server/server.js"
     },
     {
       "handle": "filesystem"
@@ -35,6 +27,7 @@
     {
       "src": "/(.*)",
       "dest": "/index.html"
-    }
-  ]
+    }  ],  "env": {
+    "NODE_ENV": "production"
+  }
 }

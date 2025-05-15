@@ -14,6 +14,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Session, Quiz, UserDetails } from '../../types/index';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { API_URL } from '../../config';
 
 interface SessionResponse {
   sessionId: string;
@@ -23,7 +24,7 @@ interface SessionResponse {
 // --- API Service Abstraction ---
 // It's beneficial to abstract API calls into separate functions or a dedicated service.
 const fetchSessionDetails = async (sessionId: string): Promise<Session> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/${sessionId}`);
+  const response = await fetch(`${API_URL}/api/session/${sessionId}`);
   if (!response.ok) {
     throw new Error('Failed to fetch session');
   }
@@ -31,7 +32,7 @@ const fetchSessionDetails = async (sessionId: string): Promise<Session> => {
 };
 
 const postTranscription = async (sessionId: string, text: string, timestamp: number): Promise<void> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/transcription`, {
+  const response = await fetch(`${API_URL}/api/transcription`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -48,7 +49,7 @@ const postTranscription = async (sessionId: string, text: string, timestamp: num
 };
 
 const postQuiz = async (sessionId: string, quiz: Quiz): Promise<void> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/quiz`, {
+  const response = await fetch(`${API_URL}/api/quiz`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -64,7 +65,7 @@ const postQuiz = async (sessionId: string, quiz: Quiz): Promise<void> => {
 };
 
 const endSessionApi = async (sessionId: string): Promise<void> => {
-  const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/end`, {
+  const response = await fetch(`${API_URL}/api/session/end`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

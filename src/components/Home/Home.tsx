@@ -7,6 +7,7 @@ import { Label } from '../ui/label';
 import { Alert, AlertDescription } from '../ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { UserDetails } from '../../types/index';
+import { API_URL } from '../../config';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -42,10 +43,8 @@ const Home: React.FC = () => {
     if (!validateEmail(email)) {
       setError('Please enter a valid email address.');
       return;
-    }
-
-    try {
-      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/create`, {
+    }    try {
+      const response = await fetch(`${API_URL}/api/session/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,10 +85,8 @@ const Home: React.FC = () => {
     if (!validateEmail(email)) {
       setError('Please enter a valid email address.');
       return;
-    }
-
-    try {
-      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/session/join`, {
+    }    try {
+      const response = await fetch(`${API_URL}/api/session/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
